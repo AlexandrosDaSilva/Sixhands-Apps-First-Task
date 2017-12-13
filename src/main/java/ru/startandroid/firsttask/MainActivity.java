@@ -52,6 +52,13 @@ public class MainActivity extends Activity {
     float touchX;
     float touchY;
 
+    float deltaX;
+    float deltaY;
+
+    boolean inTriangle = false;
+    boolean inSquare = false;
+    boolean isInside = false;
+
     Button buttonLoad;
     Button buttonMode;
     Button buttonSave;
@@ -139,14 +146,6 @@ public class MainActivity extends Activity {
                 touchX = event.getX();
                 touchY = event.getY();
 
-                //float startTouchX;
-                //float startTouchY;
-                float deltaX = 0;
-                float deltaY = 0;
-
-                boolean drag = false;
-                boolean isInside = false;
-
                 getScreenSize(MainActivity.this);
 
                 if (resChanged) {
@@ -190,28 +189,45 @@ public class MainActivity extends Activity {
                         if (((sides[0] * sides[1] >= 0) && (sides[0] * sides[2] >= 0) && (sides[1] * sides[2] >= 0))) {
                         // включаем режим перетаскивания
                             Toast.makeText(MainActivity.this, "Right into the triangle!", Toast.LENGTH_SHORT).show();
-                            drag = true;
+                            inTriangle = true;
                             deltaX = touchX - ((x[0] + 1) * (imageWidth / 2) + (scrWidth - imageWidth)/2);
                             deltaY = touchY - ((y[0] + 1) * (imageHeight / 2) - 68 + (scrHeight - imageHeight)/2);
                             //isClicked = (isClicked + 1) % 2;
                             //glSurfaceView.requestRender();
                         }
+
+                        // если касание было начато в пределах квадрата
+                        if (((x[3]) * (imageWidth / 2) + (scrWidth)/2 < touchX) && (((x[5]) * (imageWidth / 2) + (scrWidth)/2 > touchX)) && ((y[3]) * (imageHeight / 2) - 68 + (scrHeight)/2 < touchY) && ((y[5]) * (imageHeight / 2) - 68 + (scrHeight)/2 > touchY)){
+                            Toast.makeText(MainActivity.this, "Right into the square!", Toast.LENGTH_SHORT).show();
+                            inSquare = true;
+                            deltaX = touchX - ((x[3] + 1) * (imageWidth / 2) + (scrWidth - imageWidth)/2);
+                            deltaY = touchY - ((y[3] + 1) * (imageHeight / 2) - 68 + (scrHeight - imageHeight)/2);
+                        }
+
                         break;
                     case MotionEvent.ACTION_MOVE:
                         // движение
                         //Toast.makeText(MainActivity.this, "Move: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
-                        //if (drag) {
+                        if (inTriangle) {
                         //Toast.makeText(MainActivity.this, "Moving!!!", Toast.LENGTH_SHORT).show();
                             for (int i = 0; i < 3; i++) {
                                 FBORenderer.verticesMask[2*i] = (2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaX;
                                 FBORenderer.verticesMask[2*i + 1] = (2 * 68 + 2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaY;
                             }
-                        //}
+                        }
+                        if (inSquare) {
+                            for (int i = 3; i < FBORenderer.verticesMask.length/2; i++) {
+                                FBORenderer.verticesMask[2*i] = (2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaX;
+                                FBORenderer.verticesMask[2*i + 1] = (2 * 68 + 2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaY;
+                            }
+                        }
                         break;
                     case MotionEvent.ACTION_UP:
                         // отпускание
                         //Toast.makeText(MainActivity.this, "Up: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
-                        drag = false;
+                        if (inSquare) Toast.makeText(MainActivity.this, "Moved...", Toast.LENGTH_SHORT).show();
+                        inTriangle = false;
+                        inSquare = false;
                         glSurfaceView.requestRender();
                         break;
 
