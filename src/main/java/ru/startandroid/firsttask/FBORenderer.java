@@ -5,6 +5,8 @@ package ru.startandroid.firsttask;
  */
 
 import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Path;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
@@ -46,18 +48,22 @@ public class FBORenderer {
     private static int uColorLocationMask;
     private static int uMatrixLocationMask;
 
+    public static int imageHeight;
+    public static int imageWidth;
+
     private static int programIdMask;
 
     static int fboId;
     static int fboTex;
+    static int resId;
     static int[] temp = new int[1];
     static int[] oldFBO = new int[1];
     static int[] oldTex = new int[1];
 
     public static float[] verticesMask = {
             0.0f, 0.0f,
-            0.0f, 0.5f,
-            1.0f, 0.0f,
+            0.0f, 1.0f,
+            2.0f, 0.0f,
             -1.0f, 0.0f,
             -0.5f, 0.0f,
             -0.5f, -0.5f,
@@ -122,13 +128,30 @@ public class FBORenderer {
         glUniform4f(uColorLocationMask, 1.0f, 0.0f, 0.0f, 1.0f);
     }
 
-    private static void prepareDataMask() {
+    public static void prepareDataMask() {
+
+        if (MainActivity.resChanged) {
+            resId = R.drawable.coco_pills;
+        }
+        else {
+            resId = R.drawable.drones_full;
+        }
+
+        final BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inScaled = false;
+        options.inJustDecodeBounds = true;
+
+        final Bitmap bitmap = BitmapFactory.decodeResource(context.getResources(), resId, options);
+
+        imageHeight = options.outHeight;
+        imageWidth = options.outWidth;
+
         float[] verticesMaskNew = new float[verticesMask.length];
 
         for (int i = 0; i < verticesMask.length/2; i++) {
-            //verticesMask[2*i + 1] = - verticesMask[2*i + 1];
-            verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1]*OpenGLRenderer.glViewHeight/OpenGLRenderer.glViewWidth;
-            verticesMaskNew[2*i] = verticesMask[2*i]*OpenGLRenderer.glViewWidth/OpenGLRenderer.glViewHeight;
+            //verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
+            verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
+            verticesMaskNew[2*i] = verticesMask[2*i] * imageHeight/imageWidth;
         }
 
         verticesMask = verticesMaskNew;
@@ -138,6 +161,7 @@ public class FBORenderer {
                 .order(ByteOrder.nativeOrder())
                 .asFloatBuffer();
         vertexDataMask.put(verticesMask);
+
     }
 
     private static void bindDataMask() {

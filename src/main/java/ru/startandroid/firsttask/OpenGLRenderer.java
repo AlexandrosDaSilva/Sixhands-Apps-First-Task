@@ -62,7 +62,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     private static final int STRIDE = (POSITION_COUNT
             + TEXTURE_COUNT) * 4;
 
-    private Context context;
+    private static Context context;
 
     private FloatBuffer vertexData;
 
@@ -73,6 +73,8 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     int scrWidth;
     int scrHeight;
+
+    public static float[] vertices;
 
     private int aPositionLocation;
     private int aTextureLocation;
@@ -116,12 +118,6 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         scrWidth = width;
         scrHeight = height;
     }
-
-    /*public void getScreenSize(Context context) {
-        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
-        glViewHeight = metrics.heightPixels;
-        glViewWidth = metrics.widthPixels;
-    }*/
 
     private void createAndUseProgram() {
         int vertexShaderId = ShaderUtils.createShader(context, GL_VERTEX_SHADER, R.raw.vertex_shader);
@@ -241,6 +237,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     @Override
     public void onDrawFrame(GL10 arg0) {
+
         GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBORenderer.oldFBO[0]);
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, FBORenderer.oldTex[0]);
 
@@ -257,7 +254,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
     }
 
-    public float[] getVertices(int resourceId) {
+    public static float[] getVertices(int resourceId) {
 
         float[] vertices = {
                 -glViewWidth / 2.0f,  glViewHeight / 2.0f, 1,   0, 0,
@@ -287,8 +284,6 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
             vertices[11] = (imageHeight * glViewWidth / imageWidth) / 2.0f;
             vertices[16] = -(imageHeight * glViewWidth / imageWidth) / 2.0f;
         }
-
-        //bitmap.recycle();
 
         return vertices;
     }
