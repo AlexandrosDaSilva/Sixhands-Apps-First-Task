@@ -10,6 +10,7 @@ import android.graphics.BitmapFactory;
 import android.graphics.Path;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
+import android.util.Log;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -53,6 +54,11 @@ public class FBORenderer {
 
     private static int programIdMask;
 
+    private static float scaling;
+
+    static float deltaX = 0;
+    static float deltaY = 0;
+
     static int fboId;
     static int fboTex;
     static int resId;
@@ -63,7 +69,7 @@ public class FBORenderer {
     public static float[] verticesMask = {
             0.0f, 0.0f,
             0.0f, 1.0f,
-            2.0f, 0.0f,
+            1.0f, 0.0f,
             -1.0f, 0.0f,
             -0.5f, 0.0f,
             -0.5f, -0.5f,
@@ -73,6 +79,7 @@ public class FBORenderer {
     private static float[] mProjectionMatrix = new float[16];
     private static float[] mViewMatrix = new float[16];
     private static float[] mMatrix = new float[16];
+    private static float[] mModelMatrix = new float[16];
 
     private static FloatBuffer vertexDataMask;
 
@@ -81,6 +88,8 @@ public class FBORenderer {
     }
 
     public static void fboInit (int width, int height) {
+        Log.d("FBO Initialization","We entered fboInit");
+
         GLES20.glGetIntegerv(GLES20.GL_FRAMEBUFFER_BINDING, oldFBO, 0);
         GLES20.glGetIntegerv(GLES20.GL_TEXTURE_BINDING_2D, oldTex, 0);
 
@@ -105,13 +114,6 @@ public class FBORenderer {
         GLES20.glFramebufferTexture2D(GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, fboTex, 0);
 
         createAndUseProgramMask();
-        getLocationsMask();
-        prepareDataMask();
-        bindDataMask();
-
-        glClear(GL_COLOR_BUFFER_BIT);
-        glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDrawArrays(GL_TRIANGLE_FAN, 3,4);
     }
 
     private static void createAndUseProgramMask() {
@@ -146,15 +148,18 @@ public class FBORenderer {
         imageHeight = options.outHeight;
         imageWidth = options.outWidth;
 
-        float[] verticesMaskNew = new float[verticesMask.length];
+        //imageHeight = OpenGLRenderer.bitmap.getHeight();
+        //imageWidth = OpenGLRenderer.bitmap.getWidth();
 
-        for (int i = 0; i < verticesMask.length/2; i++) {
+        //float[] verticesMaskNew = new float[verticesMask.length];
+
+        /*for (int i = 0; i < verticesMask.length/2; i++) {
             //verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
             verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
             verticesMaskNew[2*i] = verticesMask[2*i] * imageHeight/imageWidth;
-        }
+        }*/
 
-        verticesMask = verticesMaskNew;
+        //verticesMask = verticesMaskNew;
 
         vertexDataMask = ByteBuffer
                 .allocateDirect(verticesMask.length * 4)
@@ -162,6 +167,37 @@ public class FBORenderer {
                 .asFloatBuffer();
         vertexDataMask.put(verticesMask);
 
+    }
+
+    public static void fboDraw() {
+        getLocationsMask();
+        prepareDataMask();
+        bindDataMask();
+        createModelMatrixMask();
+        bindMatrixMask();
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glDrawArrays(GL_TRIANGLE_FAN, 3,4);
+    }
+
+    private static void bindMatrixMask() {
+        //Matrix.multiplyMM(mMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        //Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mMatrix, 0);
+        //Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+        glUniformMatrix4fv(uMatrixLocationMask, 1, false, mModelMatrix, 0);
+    }
+
+    private static void createModelMatrixMask() {
+        scaling = 1.0f;
+        Matrix.setIdentityM(mModelMatrix, 0);
+        Matrix.translateM(mModelMatrix, 0, deltaX, deltaY, 0);
+        Matrix.scaleM(mModelMatrix, 0, scaling, scaling, 1);
+    }
+
+    public static void setParams(float x, float y) {
+        deltaX = x;
+        deltaY = y;
     }
 
     private static void bindDataMask() {
@@ -173,6 +209,7 @@ public class FBORenderer {
 
         glActiveTexture(GL_TEXTURE1);
     }
+
 /*
     private static void createProjectionMatrixMask(int width, int height) {
         float ratio = 1;

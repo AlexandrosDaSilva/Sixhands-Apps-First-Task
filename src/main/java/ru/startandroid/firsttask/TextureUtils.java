@@ -56,6 +56,7 @@ public class TextureUtils {
 
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
 
+
         //GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, 0);
         //GLES20.glBindRenderbuffer(GLES20.GL_RENDERBUFFER, oldRB[0]);
         //glBindFramebuffer(GL_FRAMEBUFFER, oldFBO[0]);
@@ -63,7 +64,7 @@ public class TextureUtils {
 
         //glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
-        bitmap.recycle();
+        //bitmap.recycle();
 
         // сброс target
         //glBindTexture(GLES20.GL_TEXTURE_2D, 0);

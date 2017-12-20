@@ -34,11 +34,14 @@ import static android.opengl.GLES20.glViewport;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Point;
 import android.opengl.GLES20;
 import android.opengl.GLSurfaceView;
 import android.opengl.GLSurfaceView.Renderer;
 import android.opengl.Matrix;
 import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.Display;
 
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
@@ -66,13 +69,15 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     private FloatBuffer vertexData;
 
-    public static float glViewHeight = 9.3f;
-    public static float glViewWidth = 6;
+    //public static int scrHeight;
+    //public static int scrWidth;
+    public static float glViewHeight = 18.6f;
+    public static float glViewWidth = 12;
     public static int imageHeight;
     public static int imageWidth;
 
-    int scrWidth;
-    int scrHeight;
+    public static int bmWidth;
+    public static int bmHeight;
 
     public static float[] vertices;
 
@@ -85,10 +90,13 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
     private int programId;
 
-    private Bitmap bitmap;
+    public static Bitmap bitmap;
+
+    private float scaling;
 
     private float[] mProjectionMatrix = new float[16];
     private float[] mViewMatrix = new float[16];
+    private float[] mModelMatrix = new float[16];
     private float[] mMatrix = new float[16];
 
     public static int resId;
@@ -105,18 +113,17 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
     public void onSurfaceCreated(GL10 arg0, EGLConfig arg1) {
         glClearColor(0f, 0f, 0f, 1f);
         glEnable(GL_DEPTH_TEST);
-
-        fboRenderer = new FBORenderer(context);
     }
 
     @Override
     public void onSurfaceChanged(GL10 arg0, int width, int height) {
-        FBORenderer.fboInit(width, height);
+        bmHeight = height;
+        bmWidth = width;
 
         glViewport(0, 0, width, height);
 
-        scrWidth = width;
-        scrHeight = height;
+        fboRenderer = new FBORenderer(context);
+        FBORenderer.fboInit(bmWidth, bmHeight);
     }
 
     private void createAndUseProgram() {
@@ -196,7 +203,7 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         float right = 1;
         float bottom = -1;
         float top = 1;
-        float near = 2;
+        float near = 1;
         float far = 12;
         if (width > height) {
             ratio = (float) width / height;
@@ -230,28 +237,51 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ);
     }
 
+    private void createModelMatrix() {
+        scaling = 1.0f;
+        Matrix.setIdentityM(mModelMatrix, 0);
+        Matrix.scaleM(mModelMatrix, 0, scaling, scaling, 1);
+    }
+
     private void bindMatrix() {
-        Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
+        Matrix.multiplyMM(mMatrix, 0, mViewMatrix, 0, mModelMatrix, 0);
+        Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mMatrix, 0);
+        //Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
         glUniformMatrix4fv(uMatrixLocation, 1, false, mMatrix, 0);
     }
 
     @Override
     public void onDrawFrame(GL10 arg0) {
+        //if (bitmap != null) {
 
-        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBORenderer.oldFBO[0]);
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, FBORenderer.oldTex[0]);
+            //Log.d("Bitmap", "isn't null!");
 
-        createAndUseProgram();
-        getLocations();
-        prepareData();
-        bindData();
-        createViewMatrix();
-        createProjectionMatrix(scrWidth, scrHeight);
-        bindMatrix();
+            //bmWidth = bitmap.getWidth();
+            //bmHeight = bitmap.getHeight();
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+            FBORenderer.fboDraw();
 
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+            GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBORenderer.oldFBO[0]);
+            GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, FBORenderer.oldTex[0]);
+
+            Log.d("Drew", "Triangles");
+            createAndUseProgram();
+            getLocations();
+            prepareData();
+            bindData();
+            createViewMatrix();
+            //createProjectionMatrix(bitmap.getWidth(), bitmap.getHeight());
+            createProjectionMatrix(bmWidth, bmHeight);
+            createModelMatrix();
+            bindMatrix();
+
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+            glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+        /*}
+        else {
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        }*/
     }
 
     public static float[] getVertices(int resourceId) {
@@ -272,6 +302,9 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         imageHeight = options.outHeight;
         imageWidth = options.outWidth;
 
+        //imageWidth = bitmap.getWidth();
+        //imageHeight = bitmap.getHeight();
+
         if (imageHeight/imageWidth >= glViewHeight/glViewWidth) {
             vertices[0] = -(imageWidth * glViewHeight / imageHeight) / 2.0f;
             vertices[5] = -(imageWidth * glViewHeight / imageHeight) / 2.0f;
@@ -288,7 +321,23 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
         return vertices;
     }
 
-    /*public void setBitmap(Bitmap bitmapImage) {
+    public static float[] coordChange(float x, float y) {
+        //Log.d("Current coordinates", x + ", " + y);
+        float[] newXY = new float[2];
+        newXY[0] = MainActivity.scrWidth/2 + (imageWidth/2)*x;
+        newXY[1] = MainActivity.scrHeight/2 - 19 + (imageHeight/2)*y;
+        //Log.d("Changed coordinates", newXY[0] + ", " + newXY[1]);
+        return newXY;
+    }
+
+    public static float[] coordRevChange(float x, float y) {
+        float[] newXY = new float[2];
+        newXY[0] = (x - MainActivity.scrWidth/2) / (imageWidth/2);
+        newXY[1] = (y - MainActivity.scrHeight/2 + 19) / (imageHeight/2);
+        return newXY;
+    }
+
+    public void setBitmap(Bitmap bitmapImage) {
         this.bitmap = bitmapImage;
-    }*/
+    }
 }

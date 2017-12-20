@@ -6,5 +6,6 @@ varying vec2 v_Texture;
 void main()
 {
     gl_Position = u_Matrix * a_Position;
+    //gl_Position = a_Position;
     v_Texture = a_Texture;
 }

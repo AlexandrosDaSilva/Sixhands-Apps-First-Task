@@ -23,6 +23,7 @@ import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceView;
 import android.view.View;
@@ -33,6 +34,7 @@ import android.widget.Toast;
 
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 
@@ -97,6 +99,8 @@ public class MainActivity extends Activity {
         buttonMode = findViewById(R.id.buttonMode);
         buttonSave = findViewById(R.id.buttonSave);
 
+        //imageView = findViewById(R.id.imageView);
+
         View.OnClickListener oclBtn = new View.OnClickListener() {
             @Override
             public void onClick( View v) {
@@ -108,8 +112,8 @@ public class MainActivity extends Activity {
                         }
                         else {
                             Intent intent = new Intent();
-                            intent.setType("image/*");
                             intent.setAction(Intent.ACTION_PICK);
+                            intent.setType("image/*");
                             startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE);
                         }*/
 
@@ -123,19 +127,24 @@ public class MainActivity extends Activity {
                         break;
                     case R.id.buttonSave:
                         //Save image to gallery
-                        File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "savedBitmap.png");
-                        try {
-                            FileOutputStream fos = null;
-                            try {
-                                fos = new FileOutputStream(file);
-                                //loadedPic.compress(Bitmap.CompressFormat.JPEG, 100, fos);
-                            } finally {
-                                if (fos != null) fos.close();
-                            }
-                        } catch (Exception e) {
-                            e.printStackTrace();
+                        /*if (ContextCompat.checkSelfPermission(MainActivity.this, Manifest.permission.WRITE_EXTERNAL_STORAGE) != PERMISSION_GRANTED) {
+                            ActivityCompat.requestPermissions(MainActivity.this, new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, MY_PERMISSIONS_REQUEST_WRITE_EXTERNAL_STORAGE);
                         }
-                        break;
+                        else {
+                            File file = new File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "savedBitmap.png");
+                            try {
+                                FileOutputStream fos = null;
+                                try {
+                                    fos = new FileOutputStream(file);
+                                    loadedPic.compress(Bitmap.CompressFormat.JPEG, 100, fos);
+                                } finally {
+                                    if (fos != null) fos.close();
+                                }
+                            } catch (Exception e) {
+                                e.printStackTrace();
+                            }
+                        }
+                        break;*/
                 }
             }
         };
@@ -164,6 +173,12 @@ public class MainActivity extends Activity {
                 imageHeight = options.outHeight;
                 imageWidth = options.outWidth;
 
+                //Log.d("Image metrics (coord)", imageWidth + ", " + imageHeight);
+                Log.d("Touch coordinates", touchX + ", " + touchY);
+
+                //imageWidth = loadedPic.getWidth();
+                //imageHeight = loadedPic.getHeight();
+
                 float[] x = new float[FBORenderer.verticesMask.length];
                 float[] y = new float[FBORenderer.verticesMask.length];
                 float[] sides = new float[FBORenderer.verticesMask.length/2];
@@ -171,37 +186,41 @@ public class MainActivity extends Activity {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         // нажатие
-                        //startTouchX = touchX;
-                        //startTouchY = touchY;
 
                         for (int i = 0; i < FBORenderer.verticesMask.length/2; i++) {
-                            x[i] = FBORenderer.verticesMask[2*i];
-                            y[i] = FBORenderer.verticesMask[2*i + 1];
+                            float[] temp = OpenGLRenderer.coordChange(FBORenderer.verticesMask[2*i], FBORenderer.verticesMask[2*i + 1]);
+                            x[i] = temp[0];
+                            y[i] = temp[1];
+                            Log.d("Triangle coordinates", x[i] + ", " + y[i]);
                         }
 
-                        sides[0] = ((x[0]) * (imageWidth / 2) + (scrWidth)/2 - touchX) * (y[1] - y[0]) * (imageHeight / 2) - (x[1] - x[0]) * (imageWidth / 2) * ((y[0]) * (imageHeight / 2) - 68 + (scrHeight)/2 - touchY);
-                        sides[1] = ((x[1]) * (imageWidth / 2) + (scrWidth)/2 - touchX) * (y[2] - y[1]) * (imageHeight / 2) - (x[2] - x[1]) * (imageWidth / 2) * ((y[1]) * (imageHeight / 2) - 68 + (scrHeight)/2 - touchY);
-                        sides[2] = ((x[2]) * (imageWidth / 2) + (scrWidth)/2 - touchX) * (y[0] - y[2]) * (imageHeight / 2) - (x[0] - x[2]) * (imageWidth / 2) * ((y[2]) * (imageHeight / 2) - 68 + (scrHeight)/2 - touchY);
+                        sides[0] = (x[0] - touchX) * (y[1] - y[0]) - (x[1] - x[0]) * (y[0] - touchY);
+                        sides[1] = (x[1] - touchX) * (y[2] - y[1]) - (x[2] - x[1]) * (y[1] - touchY);
+                        sides[2] = (x[2] - touchX) * (y[0] - y[2]) - (x[0] - x[2]) * (y[2] - touchY);
+
+                        Log.d("Check sides", sides[0] + ", " + sides[1] + ", " + sides[2]);
 
                         //Toast.makeText(MainActivity.this, "Down: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
 
                         // если касание было начато в пределах треугольника
                         if (((sides[0] * sides[1] >= 0) && (sides[0] * sides[2] >= 0) && (sides[1] * sides[2] >= 0))) {
                         // включаем режим перетаскивания
+                            Log.d("Touch", "in the triangle!");
                             Toast.makeText(MainActivity.this, "Right into the triangle!", Toast.LENGTH_SHORT).show();
                             inTriangle = true;
-                            deltaX = touchX - ((x[0] + 1) * (imageWidth / 2) + (scrWidth - imageWidth)/2);
-                            deltaY = touchY - ((y[0] + 1) * (imageHeight / 2) - 68 + (scrHeight - imageHeight)/2);
+                            deltaX = touchX - x[0];
+                            deltaY = touchY - y[0];
+                            FBORenderer.deltaX = 1;
                             //isClicked = (isClicked + 1) % 2;
-                            //glSurfaceView.requestRender();
+                            glSurfaceView.requestRender();
                         }
 
                         // если касание было начато в пределах квадрата
                         if (((x[3]) * (imageWidth / 2) + (scrWidth)/2 < touchX) && (((x[5]) * (imageWidth / 2) + (scrWidth)/2 > touchX)) && ((y[3]) * (imageHeight / 2) - 68 + (scrHeight)/2 < touchY) && ((y[5]) * (imageHeight / 2) - 68 + (scrHeight)/2 > touchY)){
                             Toast.makeText(MainActivity.this, "Right into the square!", Toast.LENGTH_SHORT).show();
                             inSquare = true;
-                            deltaX = touchX - ((x[3] + 1) * (imageWidth / 2) + (scrWidth - imageWidth)/2);
-                            deltaY = touchY - ((y[3] + 1) * (imageHeight / 2) - 68 + (scrHeight - imageHeight)/2);
+                            deltaX = touchX - x[3];
+                            deltaY = touchY - y[3];
                         }
 
                         break;
@@ -209,17 +228,20 @@ public class MainActivity extends Activity {
                         // движение
                         //Toast.makeText(MainActivity.this, "Move: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
                         if (inTriangle) {
-                        //Toast.makeText(MainActivity.this, "Moving!!!", Toast.LENGTH_SHORT).show();
-                            for (int i = 0; i < 3; i++) {
-                                FBORenderer.verticesMask[2*i] = (2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaX;
-                                FBORenderer.verticesMask[2*i + 1] = (2 * 68 + 2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaY;
-                            }
+                            //Toast.makeText(MainActivity.this, "Into the triangle!", Toast.LENGTH_SHORT).show();
+                            //Log.d("We made it", "into the triangle");
+                            //float[] temp = OpenGLRenderer.coordRevChange(deltaX, deltaY);
+                            //FBORenderer.setParams(temp[0], temp[1]);
+
+                            //FBORenderer.fboInit(OpenGLRenderer.scrWidth, OpenGLRenderer.scrHeight);
+                            //FBORenderer.fboDraw();
+                            //glSurfaceView.requestRender();
                         }
                         if (inSquare) {
-                            for (int i = 3; i < FBORenderer.verticesMask.length/2; i++) {
+                            /*for (int i = 3; i < FBORenderer.verticesMask.length/2; i++) {
                                 FBORenderer.verticesMask[2*i] = (2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaX;
                                 FBORenderer.verticesMask[2*i + 1] = (2 * 68 + 2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaY;
-                            }
+                            }*/
                         }
                         break;
                     case MotionEvent.ACTION_UP:
@@ -228,7 +250,7 @@ public class MainActivity extends Activity {
                         if (inSquare) Toast.makeText(MainActivity.this, "Moved...", Toast.LENGTH_SHORT).show();
                         inTriangle = false;
                         inSquare = false;
-                        glSurfaceView.requestRender();
+                        //glSurfaceView.requestRender();
                         break;
 
                     case MotionEvent.ACTION_CANCEL:
@@ -248,14 +270,27 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        //loadedPic = null;
 
         if (requestCode == PICK_IMAGE) {
             if (resultCode == RESULT_OK) {
-                Uri imageUri = data.getData();
-                loadedPicPath = getRealPathFromURI(this, data.getData());
-                loadedPic = decodeFile(loadedPicPath);
-                //loadedPic = getBitmap(this.getContentResolver(), imageUri);
-                //openGLRenderer.setBitmap(loadedPic);
+                if (data != null) {
+                    Uri imageUri = data.getData();
+                    try {
+                        loadedPic = MediaStore.Images.Media.getBitmap(getContentResolver(), imageUri);
+                        openGLRenderer.setBitmap(loadedPic);
+                        Toast.makeText(MainActivity.this, "Pic taken!", Toast.LENGTH_SHORT).show();
+                        Log.d("We got there", "We took bitmap");
+                        //glSurfaceView.requestRender();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                    }
+                    //loadedPicPath = getRealPathFromURI(this, data.getData());
+                    //loadedPic = decodeFile(loadedPicPath);
+                    //loadedPic = getBitmap(this.getContentResolver(), imageUri);
+
+                    //imageView.setImageBitmap(loadedPic);
+                }
             }
             //loadedPicPath = getRealPathFromURI(this, data.getData());
             //loadedPic = decodeFile(loadedPicPath);
@@ -288,7 +323,7 @@ public class MainActivity extends Activity {
         scrWidth = metrics.widthPixels;
     }
 
-    public String getRealPathFromURI(Context context, Uri contentUri) {
+    /*public String getRealPathFromURI(Context context, Uri contentUri) {
         Cursor cursor = null;
         try {
             String[] proj = { MediaStore.Images.Media.DATA };
@@ -301,7 +336,7 @@ public class MainActivity extends Activity {
                 cursor.close();
             }
         }
-    }
+    }*/
 
     /*@Override
     public void onRequestPermissionsResult(int requestCode, String permissions[], int[] grantResults) {
