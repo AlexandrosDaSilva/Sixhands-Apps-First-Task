@@ -7,6 +7,7 @@ import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.graphics.Path;
 import android.media.Image;
 import android.net.Uri;
 import android.os.Bundle;
@@ -54,12 +55,25 @@ public class MainActivity extends Activity {
     float touchX;
     float touchY;
 
+    float multiX;
+    float multiY;
+    float multiXend;
+    float multiYend;
+
     float deltaX;
     float deltaY;
+
+    float scaleBeg = 1;
+    float scaleEnd = 1;
+    float scale;
+
+    float[] beg;
 
     boolean inTriangle = false;
     boolean inSquare = false;
     boolean isInside = false;
+
+    public static boolean inActMove = false;
 
     Button buttonLoad;
     Button buttonMode;
@@ -186,6 +200,8 @@ public class MainActivity extends Activity {
                 switch (event.getAction()) {
                     case MotionEvent.ACTION_DOWN:
                         // нажатие
+                        multiX = touchX;
+                        multiY = touchY;
 
                         for (int i = 0; i < FBORenderer.verticesMask.length/2; i++) {
                             float[] temp = OpenGLRenderer.coordChange(FBORenderer.verticesMask[2*i], FBORenderer.verticesMask[2*i + 1]);
@@ -208,49 +224,60 @@ public class MainActivity extends Activity {
                             Log.d("Touch", "in the triangle!");
                             Toast.makeText(MainActivity.this, "Right into the triangle!", Toast.LENGTH_SHORT).show();
                             inTriangle = true;
-                            deltaX = touchX - x[0];
-                            deltaY = touchY - y[0];
-                            FBORenderer.deltaX = 1;
                             //isClicked = (isClicked + 1) % 2;
-                            glSurfaceView.requestRender();
+                            beg = OpenGLRenderer.coordRevChange(touchX, touchY);
                         }
 
                         // если касание было начато в пределах квадрата
                         if (((x[3]) * (imageWidth / 2) + (scrWidth)/2 < touchX) && (((x[5]) * (imageWidth / 2) + (scrWidth)/2 > touchX)) && ((y[3]) * (imageHeight / 2) - 68 + (scrHeight)/2 < touchY) && ((y[5]) * (imageHeight / 2) - 68 + (scrHeight)/2 > touchY)){
                             Toast.makeText(MainActivity.this, "Right into the square!", Toast.LENGTH_SHORT).show();
                             inSquare = true;
-                            deltaX = touchX - x[3];
-                            deltaY = touchY - y[3];
+                            //deltaX = touchX - x[3];
+                            //deltaY = touchY - y[3];
                         }
+
+                    /*case MotionEvent.ACTION_POINTER_DOWN:
+                        Toast.makeText(MainActivity.this, "Second finger!", Toast.LENGTH_SHORT).show();
+                        //scaleBeg = (float) Math.sqrt(Math.pow((event.getX() - multiX), 2) + Math.pow((event.getY() - multiY), 2));*/
 
                         break;
                     case MotionEvent.ACTION_MOVE:
                         // движение
                         //Toast.makeText(MainActivity.this, "Move: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
                         if (inTriangle) {
+                            inActMove = true;
                             //Toast.makeText(MainActivity.this, "Into the triangle!", Toast.LENGTH_SHORT).show();
-                            //Log.d("We made it", "into the triangle");
-                            //float[] temp = OpenGLRenderer.coordRevChange(deltaX, deltaY);
-                            //FBORenderer.setParams(temp[0], temp[1]);
-
-                            //FBORenderer.fboInit(OpenGLRenderer.scrWidth, OpenGLRenderer.scrHeight);
-                            //FBORenderer.fboDraw();
-                            //glSurfaceView.requestRender();
+                            Log.d("We made it", "into the triangle");
+                            float[] temp1 = OpenGLRenderer.coordRevChange(touchX, touchY);
+                            deltaX = temp1[0] - beg[0];
+                            deltaY = temp1[1] - beg[1];
+                            FBORenderer.setParams(deltaX, deltaY);
+                            glSurfaceView.requestRender();
                         }
                         if (inSquare) {
-                            /*for (int i = 3; i < FBORenderer.verticesMask.length/2; i++) {
-                                FBORenderer.verticesMask[2*i] = (2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaX;
-                                FBORenderer.verticesMask[2*i + 1] = (2 * 68 + 2 * touchX - 2 * deltaX - scrWidth) / imageWidth - deltaY;
-                            }*/
+
                         }
                         break;
                     case MotionEvent.ACTION_UP:
                         // отпускание
-                        //Toast.makeText(MainActivity.this, "Up: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
+
+                        multiXend = touchX;
+                        multiYend = touchY;
+
+                        if (inTriangle) {
+                            Log.d("In ActionUp", "Drawing again");
+
+                        }
                         if (inSquare) Toast.makeText(MainActivity.this, "Moved...", Toast.LENGTH_SHORT).show();
                         inTriangle = false;
                         inSquare = false;
                         //glSurfaceView.requestRender();
+                    /*case MotionEvent.ACTION_POINTER_UP:
+                        //scaleEnd = (float) Math.sqrt(Math.pow((event.getX() - multiXend), 2) + Math.pow((event.getY() - multiYend), 2));
+                        //scale = scaleEnd/scaleBeg;
+                        //scale = 0.5f;
+                        FBORenderer.scaling = scale;
+                        glSurfaceView.requestRender();*/
                         break;
 
                     case MotionEvent.ACTION_CANCEL:

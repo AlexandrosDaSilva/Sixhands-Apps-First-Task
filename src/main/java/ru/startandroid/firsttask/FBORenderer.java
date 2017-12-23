@@ -21,6 +21,7 @@ import static android.opengl.GLES20.GL_COLOR_BUFFER_BIT;
 import static android.opengl.GLES20.GL_FLOAT;
 import static android.opengl.GLES20.GL_FRAGMENT_SHADER;
 import static android.opengl.GLES20.GL_FRAMEBUFFER;
+import static android.opengl.GLES20.GL_LINE_LOOP;
 import static android.opengl.GLES20.GL_RGBA;
 import static android.opengl.GLES20.GL_TEXTURE1;
 import static android.opengl.GLES20.GL_TEXTURE_2D;
@@ -54,7 +55,7 @@ public class FBORenderer {
 
     private static int programIdMask;
 
-    private static float scaling;
+    public static float scaling = 1.0f;
 
     static float deltaX = 0;
     static float deltaY = 0;
@@ -170,6 +171,13 @@ public class FBORenderer {
     }
 
     public static void fboDraw() {
+
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboId);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, fboTex);
+
+        if (MainActivity.inActMove) {
+            Log.d("In FBO", "Drawing again");
+        }
         getLocationsMask();
         prepareDataMask();
         bindDataMask();
@@ -189,7 +197,8 @@ public class FBORenderer {
     }
 
     private static void createModelMatrixMask() {
-        scaling = 1.0f;
+        Log.d("Multi", "Deltas: " + deltaX + " and " + deltaY + " again");
+        Log.d("Multi", "scaling = " + scaling);
         Matrix.setIdentityM(mModelMatrix, 0);
         Matrix.translateM(mModelMatrix, 0, deltaX, deltaY, 0);
         Matrix.scaleM(mModelMatrix, 0, scaling, scaling, 1);
