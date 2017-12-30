@@ -261,6 +261,8 @@ public class OpenGLRenderer implements GLSurfaceView.Renderer {
 
             FBORenderer.fboDraw();
 
+            FBORenderer.drawLines(MainActivity.inTriangle);
+
             GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBORenderer.oldFBO[0]);
             GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, FBORenderer.oldTex[0]);
 

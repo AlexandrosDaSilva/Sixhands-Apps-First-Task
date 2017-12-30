@@ -63,15 +63,17 @@ public class MainActivity extends Activity {
     float deltaX;
     float deltaY;
 
-    float scaleBeg = 1;
-    float scaleEnd = 1;
-    float scale;
+    float scaleBeg;
+    float scaleEnd;
+    float scale = 1.0f;
 
     float[] beg;
 
-    boolean inTriangle = false;
+    static boolean inTriangle = false;
     boolean inSquare = false;
     boolean isInside = false;
+
+    boolean isScaled = false;
 
     public static boolean inActMove = false;
 
@@ -131,8 +133,10 @@ public class MainActivity extends Activity {
                             startActivityForResult(Intent.createChooser(intent, "Select Picture"), PICK_IMAGE);
                         }*/
 
-                        resChanged = !resChanged;
-                        glSurfaceView.requestRender();
+                        //resChanged = !resChanged;
+                        //glSurfaceView.requestRender();
+
+                        Toast.makeText(MainActivity.this, "There are no loading from gallery yet.", Toast.LENGTH_LONG).show();
                         break;
                     case R.id.buttonMode:
                         //Make changes
@@ -187,8 +191,7 @@ public class MainActivity extends Activity {
                 imageHeight = options.outHeight;
                 imageWidth = options.outWidth;
 
-                //Log.d("Image metrics (coord)", imageWidth + ", " + imageHeight);
-                Log.d("Touch coordinates", touchX + ", " + touchY);
+                //Log.d("Touch coordinates", touchX + ", " + touchY);
 
                 //imageWidth = loadedPic.getWidth();
                 //imageHeight = loadedPic.getHeight();
@@ -197,14 +200,12 @@ public class MainActivity extends Activity {
                 float[] y = new float[FBORenderer.verticesMask.length];
                 float[] sides = new float[FBORenderer.verticesMask.length/2];
 
-                switch (event.getAction()) {
+                switch (event.getActionMasked()) {
                     case MotionEvent.ACTION_DOWN:
                         // нажатие
-                        multiX = touchX;
-                        multiY = touchY;
 
                         for (int i = 0; i < FBORenderer.verticesMask.length/2; i++) {
-                            float[] temp = OpenGLRenderer.coordChange(FBORenderer.verticesMask[2*i], FBORenderer.verticesMask[2*i + 1]);
+                            float[] temp = OpenGLRenderer.coordChange(FBORenderer.verticesMask[2*i]*FBORenderer.scaling + FBORenderer.deltaX, FBORenderer.verticesMask[2*i + 1]*FBORenderer.scaling + FBORenderer.deltaY);
                             x[i] = temp[0];
                             y[i] = temp[1];
                             Log.d("Triangle coordinates", x[i] + ", " + y[i]);
@@ -216,68 +217,81 @@ public class MainActivity extends Activity {
 
                         Log.d("Check sides", sides[0] + ", " + sides[1] + ", " + sides[2]);
 
-                        //Toast.makeText(MainActivity.this, "Down: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
-
                         // если касание было начато в пределах треугольника
                         if (((sides[0] * sides[1] >= 0) && (sides[0] * sides[2] >= 0) && (sides[1] * sides[2] >= 0))) {
                         // включаем режим перетаскивания
                             Log.d("Touch", "in the triangle!");
-                            Toast.makeText(MainActivity.this, "Right into the triangle!", Toast.LENGTH_SHORT).show();
-                            inTriangle = true;
+                            //Toast.makeText(MainActivity.this, "Right into the triangle!", Toast.LENGTH_SHORT).show();
+                            inTriangle = !inTriangle;
+                            //inTriangle = true;
                             //isClicked = (isClicked + 1) % 2;
-                            beg = OpenGLRenderer.coordRevChange(touchX, touchY);
+                            if (inTriangle) {
+                                Toast.makeText(MainActivity.this, "You PICKED the triangle!", Toast.LENGTH_SHORT).show();
+                            }
+                            else {
+                                Toast.makeText(MainActivity.this, "You UNPICKED the triangle!", Toast.LENGTH_SHORT).show();
+                            }
                         }
 
+                        beg = OpenGLRenderer.coordRevChange(touchX, touchY);
+
                         // если касание было начато в пределах квадрата
-                        if (((x[3]) * (imageWidth / 2) + (scrWidth)/2 < touchX) && (((x[5]) * (imageWidth / 2) + (scrWidth)/2 > touchX)) && ((y[3]) * (imageHeight / 2) - 68 + (scrHeight)/2 < touchY) && ((y[5]) * (imageHeight / 2) - 68 + (scrHeight)/2 > touchY)){
+                        /*if (((x[3]) * (imageWidth / 2) + (scrWidth)/2 < touchX) && (((x[5]) * (imageWidth / 2) + (scrWidth)/2 > touchX)) && ((y[3]) * (imageHeight / 2) - 68 + (scrHeight)/2 < touchY) && ((y[5]) * (imageHeight / 2) - 68 + (scrHeight)/2 > touchY)){
                             Toast.makeText(MainActivity.this, "Right into the square!", Toast.LENGTH_SHORT).show();
                             inSquare = true;
                             //deltaX = touchX - x[3];
                             //deltaY = touchY - y[3];
-                        }
+                        }*/
 
-                    /*case MotionEvent.ACTION_POINTER_DOWN:
-                        Toast.makeText(MainActivity.this, "Second finger!", Toast.LENGTH_SHORT).show();
-                        //scaleBeg = (float) Math.sqrt(Math.pow((event.getX() - multiX), 2) + Math.pow((event.getY() - multiY), 2));*/
+                    case MotionEvent.ACTION_POINTER_DOWN:
+                        //Log.d("MultiTouch", "We placed second finger!");
+                        for (int i = 0; i < event.getPointerCount(); i++) {
+                            Log.d("MultiTouch", "ID = " + event.getPointerId(i) + ", X = " + event.getX(i) + ", Y = " + event.getY(i));
+                        }
+                        if (event.getActionIndex() == 1) {
+                            Log.d("MultiTouch", "We definitely placed second finger!");
+                            if (inTriangle) {
+                                isScaled = true;
+                                Toast.makeText(MainActivity.this, "Second finger!", Toast.LENGTH_SHORT).show();
+                                scaleBeg = (float) Math.sqrt(Math.pow((event.getX(1) - event.getX(0)), 2) + Math.pow((event.getY(1) - event.getY(0)), 2));
+                                //Log.d("MultiTouch", "scaleBeg = " + scaleBeg);
+                            }
+                        }
 
                         break;
                     case MotionEvent.ACTION_MOVE:
                         // движение
-                        //Toast.makeText(MainActivity.this, "Move: " + touchX + "," + touchY, Toast.LENGTH_SHORT).show();
-                        if (inTriangle) {
-                            inActMove = true;
-                            //Toast.makeText(MainActivity.this, "Into the triangle!", Toast.LENGTH_SHORT).show();
-                            Log.d("We made it", "into the triangle");
-                            float[] temp1 = OpenGLRenderer.coordRevChange(touchX, touchY);
-                            deltaX = temp1[0] - beg[0];
-                            deltaY = temp1[1] - beg[1];
-                            FBORenderer.setParams(deltaX, deltaY);
-                            glSurfaceView.requestRender();
-                        }
-                        if (inSquare) {
+                        //if (event.getPointerCount() == 1) {
+                            if (inTriangle) {
+                                float[] temp1 = OpenGLRenderer.coordRevChange(event.getX(0), event.getY(0));
+                                //Toast.makeText(MainActivity.this, "Into the triangle!", Toast.LENGTH_SHORT).show();
+                                //Log.d("We made it", "into the triangle");
 
-                        }
+                                if (isScaled) {
+                                    scaleEnd = (float) Math.sqrt(Math.pow((event.getX(1) - event.getX(0)), 2) + Math.pow((event.getY(1) - event.getY(0)), 2));
+                                    //Log.d("MultiTouch", "scaleEnd = " + scaleEnd);
+                                    scale = (float) Math.pow(scaleEnd / scaleBeg, 0.3f);
+                                    Log.d("MultiTouch", "scale = " + scale);
+                                } else {
+                                    scale = 1.0f;
+                                    deltaX = temp1[0] - beg[0];
+                                    deltaY = temp1[1] - beg[1];
+                                }
+
+                                FBORenderer.setParams(FBORenderer.deltaX + deltaX, FBORenderer.deltaY + deltaY, FBORenderer.scaling * scale);
+                                glSurfaceView.requestRender();
+
+                                beg[0] = temp1[0];
+                                beg[1] = temp1[1];
+                            }
+                        //}
                         break;
                     case MotionEvent.ACTION_UP:
                         // отпускание
-
-                        multiXend = touchX;
-                        multiYend = touchY;
-
-                        if (inTriangle) {
-                            Log.d("In ActionUp", "Drawing again");
-
-                        }
-                        if (inSquare) Toast.makeText(MainActivity.this, "Moved...", Toast.LENGTH_SHORT).show();
-                        inTriangle = false;
-                        inSquare = false;
+                        //FBORenderer.setParams(FBORenderer.deltaX + deltaX, FBORenderer.deltaY + deltaY, FBORenderer.scaling * scale);
                         //glSurfaceView.requestRender();
-                    /*case MotionEvent.ACTION_POINTER_UP:
-                        //scaleEnd = (float) Math.sqrt(Math.pow((event.getX() - multiXend), 2) + Math.pow((event.getY() - multiYend), 2));
-                        //scale = scaleEnd/scaleBeg;
-                        //scale = 0.5f;
-                        FBORenderer.scaling = scale;
-                        glSurfaceView.requestRender();*/
+                    case MotionEvent.ACTION_POINTER_UP:
+                        isScaled = false;
                         break;
 
                     case MotionEvent.ACTION_CANCEL:

@@ -36,6 +36,7 @@ import static android.opengl.GLES20.glDrawArrays;
 import static android.opengl.GLES20.glEnableVertexAttribArray;
 import static android.opengl.GLES20.glGetAttribLocation;
 import static android.opengl.GLES20.glGetUniformLocation;
+import static android.opengl.GLES20.glLineWidth;
 import static android.opengl.GLES20.glUniform4f;
 import static android.opengl.GLES20.glUniformMatrix4fv;
 import static android.opengl.GLES20.glUseProgram;
@@ -57,8 +58,8 @@ public class FBORenderer {
 
     public static float scaling = 1.0f;
 
-    static float deltaX = 0;
-    static float deltaY = 0;
+    static float deltaX = 0.0f;
+    static float deltaY = 0.0f;
 
     static int fboId;
     static int fboTex;
@@ -68,14 +69,16 @@ public class FBORenderer {
     static int[] oldTex = new int[1];
 
     public static float[] verticesMask = {
-            0.0f, 0.0f,
-            0.0f, 1.0f,
-            1.0f, 0.0f,
-            -1.0f, 0.0f,
+            -0.5f, (float) -Math.sqrt(3)/6,
+            0.5f, (float) -Math.sqrt(3)/6,
+            0.0f, (float) Math.sqrt(3)/3
+            /*-1.0f, 0.0f,
             -0.5f, 0.0f,
             -0.5f, -0.5f,
-            -1.0f, -0.5f
+            -1.0f, -0.5f*/
     };
+
+    public static float[] verticesMaskNew = verticesMask;
 
     private static float[] mProjectionMatrix = new float[16];
     private static float[] mViewMatrix = new float[16];
@@ -149,19 +152,6 @@ public class FBORenderer {
         imageHeight = options.outHeight;
         imageWidth = options.outWidth;
 
-        //imageHeight = OpenGLRenderer.bitmap.getHeight();
-        //imageWidth = OpenGLRenderer.bitmap.getWidth();
-
-        //float[] verticesMaskNew = new float[verticesMask.length];
-
-        /*for (int i = 0; i < verticesMask.length/2; i++) {
-            //verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
-            verticesMaskNew[2*i + 1] = - verticesMask[2*i + 1];
-            verticesMaskNew[2*i] = verticesMask[2*i] * imageHeight/imageWidth;
-        }*/
-
-        //verticesMask = verticesMaskNew;
-
         vertexDataMask = ByteBuffer
                 .allocateDirect(verticesMask.length * 4)
                 .order(ByteOrder.nativeOrder())
@@ -186,7 +176,29 @@ public class FBORenderer {
 
         glClear(GL_COLOR_BUFFER_BIT);
         glDrawArrays(GL_TRIANGLES, 0, 3);
-        glDrawArrays(GL_TRIANGLE_FAN, 3,4);
+        //glDrawArrays(GL_TRIANGLE_FAN, 3,4);
+    }
+
+    public static void drawLines(boolean isPicked) {
+        float alpha = 0.5f;
+
+        GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, FBORenderer.oldFBO[0]);
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, fboTex);
+
+        getLocationsMask();
+        prepareDataMask();
+        bindDataMask();
+        createModelMatrixMask();
+        bindMatrixMask();
+
+        if (isPicked) {
+            alpha = 1.0f;
+        }
+
+        glClear(GL_COLOR_BUFFER_BIT);
+        glUniform4f(uColorLocation, 1.0f, 0.0f, 0.0f, alpha);
+        glLineWidth(5);
+        glDrawArrays(GL_LINE_LOOP, 0, 3);
     }
 
     private static void bindMatrixMask() {
@@ -197,16 +209,30 @@ public class FBORenderer {
     }
 
     private static void createModelMatrixMask() {
-        Log.d("Multi", "Deltas: " + deltaX + " and " + deltaY + " again");
-        Log.d("Multi", "scaling = " + scaling);
+        //Log.d("Multi", "scaling = " + scaling);
         Matrix.setIdentityM(mModelMatrix, 0);
-        Matrix.translateM(mModelMatrix, 0, deltaX, deltaY, 0);
         Matrix.scaleM(mModelMatrix, 0, scaling, scaling, 1);
+        Matrix.translateM(mModelMatrix, 0, deltaX, deltaY, 0);
     }
 
-    public static void setParams(float x, float y) {
+    public static void setParams(float x, float y, float s) {
         deltaX = x;
         deltaY = y;
+        scaling = s;
+        /*
+        for (int i = 0; i < verticesMask.length/2; i++) {
+            verticesMaskNew[2*i] = verticesMask[2*i] + deltaX;
+            verticesMaskNew[2*i + 1] = verticesMask[2*i + 1] + deltaY;
+        }
+        verticesMask = verticesMaskNew;
+
+        verticesMaskNew[0] = (verticesMask[0] + verticesMask[2] + verticesMask[4])/3 + scaling*(2*verticesMask[0] - verticesMask[2] - verticesMask[4])/3;
+        verticesMaskNew[2] = (verticesMask[0] + verticesMask[2] + verticesMask[4])/3 + scaling*(2*verticesMask[2] - verticesMask[0] - verticesMask[4])/3;
+        verticesMaskNew[4] = (verticesMask[0] + verticesMask[2] + verticesMask[4])/3 + scaling*(2*verticesMask[4] - verticesMask[2] - verticesMask[0])/3;
+        verticesMaskNew[1] = (verticesMask[1] + verticesMask[3] + verticesMask[5])/3 + scaling*(2*verticesMask[1] - verticesMask[3] - verticesMask[5])/3;
+        verticesMaskNew[3] = (verticesMask[1] + verticesMask[3] + verticesMask[5])/3 + scaling*(2*verticesMask[3] - verticesMask[1] - verticesMask[5])/3;
+        verticesMaskNew[5] = (verticesMask[1] + verticesMask[3] + verticesMask[5])/3 + scaling*(2*verticesMask[5] - verticesMask[3] - verticesMask[1])/3;
+        */
     }
 
     private static void bindDataMask() {
@@ -218,51 +244,4 @@ public class FBORenderer {
 
         glActiveTexture(GL_TEXTURE1);
     }
-
-/*
-    private static void createProjectionMatrixMask(int width, int height) {
-        float ratio = 1;
-        float left = -1;
-        float right = 1;
-        float bottom = -1;
-        float top = 1;
-        float near = 2;
-        float far = 12;
-        if (width > height) {
-            ratio = (float) width / height;
-            left *= ratio;
-            right *= ratio;
-        } else {
-            ratio = (float) height / width;
-            bottom *= ratio;
-            top *= ratio;
-        }
-
-        Matrix.frustumM(mProjectionMatrix, 0, left, right, bottom, top, near, far);
-    }
-
-    private static void createViewMatrixMask() {
-        // точка положения камеры
-        float eyeX = 0;
-        float eyeY = 0;
-        float eyeZ = 7;
-
-        // точка направления камеры
-        float centerX = 0;
-        float centerY = 0;
-        float centerZ = 0;
-
-        // up-вектор
-        float upX = 0;
-        float upY = 1;
-        float upZ = 0;
-
-        Matrix.setLookAtM(mViewMatrix, 0, eyeX, eyeY, eyeZ, centerX, centerY, centerZ, upX, upY, upZ);
-    }
-
-    private static void bindMatrixMask() {
-        Matrix.multiplyMM(mMatrix, 0, mProjectionMatrix, 0, mViewMatrix, 0);
-        glUniformMatrix4fv(uMatrixLocationMask, 1, false, mMatrix, 0);
-    }
-*/
 }
